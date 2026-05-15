@@ -1,0 +1,121 @@
+@page "/brands"
+@attribute [Authorize]
+@inject IBrandService BrandService
+@inject ISnackbar Snackbar
+
+<PageTitle>Brand Management</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Brand Management</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           OnClick="OpenAddDialog" Class="mb-4">Add Brand</MudButton>
+
+<MudTable T="Brand" Items="_brands" Hover="true" Striped="true"
+          Loading="_loading" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh><MudTh>Name</MudTh><MudTh>Description</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                           Color="Color.Warning"
+                           OnClick="() => OpenEditDialog(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           OnClick="() => DeleteBrand(context.Id)" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (_dialogOpen)
+{
+    <MudDialog>
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                @(_editId == 0 ? "Add Brand" : "Edit Brand")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Name" Label="Name"
+                                  Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Description"
+                                  Label="Description" Variant="Variant.Outlined"
+                                  FullWidth="true" Lines="3" />
+                </MudItem>
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SaveBrand">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    List<Brand> _brands = new();
+    bool _loading = true, _dialogOpen = false;
+    int _editId = 0;
+    Brand _form = new();
+
+    protected override async Task OnInitializedAsync()
+        => await LoadBrands();
+
+    async Task LoadBrands()
+    {
+        _loading = true;
+        _brands = await BrandService.GetBrandsAsync();
+        _loading = false;
+    }
+
+    void OpenAddDialog()
+    { _editId = 0; _form = new(); _dialogOpen = true; }
+
+    void OpenEditDialog(Brand b)
+    {
+        _editId = b.Id;
+        _form = new Brand
+        {
+            Name = b.Name,
+            Description = b.Description
+        };
+        _dialogOpen = true;
+    }
+
+    async Task SaveBrand()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Error);
+            return;
+        }
+        if (_editId == 0)
+        {
+            await BrandService.CreateBrandAsync(_form);
+            Snackbar.Add("Brand added!", Severity.Success);
+        }
+        else
+        {
+            _form.Id = _editId;
+            await BrandService.UpdateBrandAsync(_form);
+            Snackbar.Add("Brand updated!", Severity.Info);
+        }
+        _dialogOpen = false;
+        await LoadBrands();
+    }
+
+    async Task DeleteBrand(int id)
+    {
+        await BrandService.DeleteBrandAsync(id);
+        Snackbar.Add("Brand deleted.", Severity.Warning);
+        await LoadBrands();
+    }
+}

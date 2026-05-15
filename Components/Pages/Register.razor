@@ -1,0 +1,87 @@
+﻿@page "/register"
+@layout EmptyLayout
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small"
+              Class="d-flex justify-center align-center"
+              Style="min-height:100vh;">
+    <MudPaper Elevation="4" Class="pa-8"
+              Style="width:100%;max-width:420px;border-radius:16px;">
+
+        <MudText Typo="Typo.h4" Align="Align.Center"
+                 Class="mb-6" Color="Color.Primary">
+            <b>Register</b>
+        </MudText>
+
+        @if (!string.IsNullOrEmpty(_success))
+        {
+            <MudAlert Severity="Severity.Success" Class="mb-4">@_success</MudAlert>
+        }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+        }
+
+        <MudTextField @bind-Value="_username" Label="Username"
+                      Variant="Variant.Outlined" FullWidth="true" Class="mb-4" />
+
+        <MudTextField @bind-Value="_password" Label="Password"
+                      InputType="InputType.Password"
+                      Variant="Variant.Outlined" FullWidth="true" Class="mb-4" />
+
+        <MudSelect T="UserRole" @bind-Value="_role" Label="Role"
+                   Variant="Variant.Outlined" FullWidth="true" Class="mb-6">
+            @foreach (var role in Enum.GetValues<UserRole>())
+            {
+                <MudSelectItem T="UserRole" Value="role">@role</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   FullWidth="true" OnClick="HandleRegister">
+            Register
+        </MudButton>
+
+        <MudText Align="Align.Center" Class="mt-4" Typo="Typo.body2">
+            Already have an account?
+            <MudLink Href="/login">Login</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    string _username = "", _password = "",
+           _error = "", _success = "";
+    UserRole _role = UserRole.Staff;
+
+    async Task HandleRegister()
+    {
+        _error = ""; _success = "";
+
+        if (string.IsNullOrWhiteSpace(_username) ||
+            string.IsNullOrWhiteSpace(_password))
+        {
+            _error = "All fields are required.";
+            return;
+        }
+
+        var existing = await UserService.GetUserByUsernameAsync(_username);
+        if (existing != null)
+        {
+            _error = "Username already taken.";
+            return;
+        }
+
+        await UserService.CreateUserAsync(new User
+        {
+            Username = _username,
+            Password = _password,
+            Role = _role
+        });
+
+        _success = "Account created! Redirecting to login...";
+        await Task.Delay(1500);
+        Navigation.NavigateTo("/login");
+    }
+}

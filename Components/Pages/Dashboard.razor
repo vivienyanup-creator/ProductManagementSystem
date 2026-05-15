@@ -1,0 +1,64 @@
+@page "/"
+@page "/dashboard"
+@attribute [Authorize]
+@inject IProductService ProductService
+@inject IUserService UserService
+
+<PageTitle>Dashboard</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-6">Dashboard</MudText>
+
+@if (_loading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2" Style="border-radius:12px;">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">
+                    Total Products
+                </MudText>
+                <MudText Typo="Typo.h3" Color="Color.Primary">
+                    @_productCount
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4" Elevation="2" Style="border-radius:12px;">
+                <MudText Typo="Typo.subtitle2" Color="Color.Secondary">
+                    Total Users
+                </MudText>
+                <MudText Typo="Typo.h3" Color="Color.Primary">
+                    @_userCount
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    int _productCount, _userCount;
+    bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var products = await ProductService.GetProductsAsync();
+            var users = await UserService.GetUsersAsync();
+
+            _productCount = products?.Count ?? 0;
+            _userCount = users?.Count ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Dashboard load error: {ex.Message}");
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

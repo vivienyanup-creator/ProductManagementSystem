@@ -1,0 +1,132 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@inject IUserService UserService
+@inject ISnackbar Snackbar
+
+<PageTitle>User Management</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">User Management</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.PersonAdd"
+           OnClick="OpenAddDialog" Class="mb-4">Add User</MudButton>
+
+@* ✅ Added T="User" *@
+<MudTable T="User" Items="_users" Hover="true" Striped="true"
+          Loading="_loading" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh><MudTh>Username</MudTh>
+        <MudTh>Role</MudTh><MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Username">@context.Username</MudTd>
+        <MudTd DataLabel="Role">
+            @* ✅ Added T="string" to MudChip *@
+            <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                @context.Role
+            </MudChip>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                           Color="Color.Warning"
+                           OnClick="() => OpenEditDialog(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           OnClick="() => DeleteUser(context.Id)" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@* ✅ Fixed MudDialog - replaced @bind-IsVisible *@
+@if (_dialogOpen)
+{
+    <MudDialog>
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                @(_editId == 0 ? "Add User" : "Edit User")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudTextField @bind-Value="_form.Username" Label="Username"
+                          Variant="Variant.Outlined" FullWidth="true" Class="mb-4" />
+            <MudTextField @bind-Value="_form.Password" Label="Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined" FullWidth="true" Class="mb-4" />
+            @* ✅ Added T="UserRole" *@
+            <MudSelect T="UserRole" @bind-Value="_form.Role" Label="Role"
+                       Variant="Variant.Outlined" FullWidth="true">
+                @foreach (var r in Enum.GetValues<UserRole>())
+                {
+                    <MudSelectItem T="UserRole" Value="r">@r</MudSelectItem>
+                }
+            </MudSelect>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SaveUser">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    List<User> _users = new();
+    bool _loading = true, _dialogOpen = false;
+    int _editId = 0;
+    User _form = new();
+
+    protected override async Task OnInitializedAsync()
+        => await LoadUsers();
+
+    async Task LoadUsers()
+    {
+        _loading = true;
+        _users = await UserService.GetUsersAsync();
+        _loading = false;
+    }
+
+    void OpenAddDialog()
+    { _editId = 0; _form = new(); _dialogOpen = true; }
+
+    void OpenEditDialog(User u)
+    {
+        _editId = u.Id;
+        _form = new User
+        {
+            Username = u.Username,
+            Password = u.Password,
+            Role = u.Role
+        };
+        _dialogOpen = true;
+    }
+
+    async Task SaveUser()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Username) ||
+            string.IsNullOrWhiteSpace(_form.Password))
+        {
+            Snackbar.Add("Username and Password are required.", Severity.Error);
+            return;
+        }
+        if (_editId == 0)
+        {
+            await UserService.CreateUserAsync(_form);
+            Snackbar.Add("User added!", Severity.Success);
+        }
+        else
+        {
+            _form.Id = _editId;
+            await UserService.UpdateUserAsync(_form);
+            Snackbar.Add("User updated!", Severity.Info);
+        }
+        _dialogOpen = false;
+        await LoadUsers();
+    }
+
+    async Task DeleteUser(int id)
+    {
+        await UserService.DeleteUserAsync(id);
+        Snackbar.Add("User deleted.", Severity.Warning);
+        await LoadUsers();
+    }
+}

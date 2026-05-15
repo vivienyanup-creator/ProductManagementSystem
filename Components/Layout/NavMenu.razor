@@ -1,0 +1,43 @@
+@inject NavigationManager Navigation
+@inject CustomAuthenticationStateProvider AuthProvider
+
+<MudNavMenu>
+    <MudNavLink Href="/dashboard"
+                Icon="@Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+
+    <MudNavLink Href="/products"
+                Icon="@Icons.Material.Filled.ShoppingCart">
+        Products
+    </MudNavLink>
+
+    <MudNavLink Href="/categories"
+                Icon="@Icons.Material.Filled.Label">
+        Categories
+    </MudNavLink>
+
+    <MudNavLink Href="/brands"
+                Icon="@Icons.Material.Filled.Store">
+        Brands
+    </MudNavLink>
+
+    <MudNavLink Href="/suppliers"
+                Icon="@Icons.Material.Filled.LocalShipping">
+        Suppliers
+    </MudNavLink>
+
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <MudNavLink Href="/users"
+                        Icon="@Icons.Material.Filled.People">
+                User Management
+            </MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
+    <MudNavLink Href="/logout"
+                Icon="@Icons.Material.Filled.Logout">
+        Logout
+    </MudNavLink>
+</MudNavMenu>

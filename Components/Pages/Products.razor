@@ -1,0 +1,185 @@
+@page "/products"
+@attribute [Authorize]
+@inject IProductService ProductService
+@inject ICategoryService CategoryService
+@inject IBrandService BrandService
+@inject ISupplierService SupplierService
+@inject ISnackbar Snackbar
+
+<PageTitle>Product Management</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Product Management</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           OnClick="OpenAddDialog" Class="mb-4">Add Product</MudButton>
+
+<MudTable T="Product" Items="_products" Hover="true" Striped="true"
+          Loading="_loading" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh><MudTh>Name</MudTh><MudTh>Category</MudTh>
+        <MudTh>Brand</MudTh><MudTh>Supplier</MudTh>
+        <MudTh>SKU</MudTh><MudTh>Price</MudTh><MudTh>Stock</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Category">@context.Category?.Name</MudTd>
+        <MudTd DataLabel="Brand">@context.Brand?.Name</MudTd>
+        <MudTd DataLabel="Supplier">@context.Supplier?.Name</MudTd>
+        <MudTd DataLabel="SKU">@context.SKU</MudTd>
+        <MudTd DataLabel="Price">@context.Price.ToString("C")</MudTd>
+        <MudTd DataLabel="Stock">@context.Stock</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                           Color="Color.Warning"
+                           OnClick="() => OpenEditDialog(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           OnClick="() => DeleteProduct(context.Id)" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (_dialogOpen)
+{
+    <MudDialog>
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                @(_editId == 0 ? "Add Product" : "Edit Product")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Name" Label="Name"
+                                  Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Description"
+                                  Label="Description" Variant="Variant.Outlined"
+                                  FullWidth="true" Lines="3" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="int?" @bind-Value="_form.CategoryId"
+                               Label="Category" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var cat in _categories)
+                        {
+                            <MudSelectItem T="int?" Value="cat.Id">@cat.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="int?" @bind-Value="_form.BrandId"
+                               Label="Brand" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var brand in _brands)
+                        {
+                            <MudSelectItem T="int?" Value="brand.Id">@brand.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudSelect T="int?" @bind-Value="_form.SupplierId"
+                               Label="Supplier" Variant="Variant.Outlined" FullWidth="true">
+                        @foreach (var supplier in _suppliers)
+                        {
+                            <MudSelectItem T="int?" Value="supplier.Id">@supplier.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField @bind-Value="_form.SKU" Label="SKU"
+                                  Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="decimal" @bind-Value="_form.Price"
+                                     Label="Price" Variant="Variant.Outlined"
+                                     FullWidth="true" Min="0" Format="F2" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudNumericField T="int" @bind-Value="_form.Stock"
+                                     Label="Stock" Variant="Variant.Outlined"
+                                     FullWidth="true" Min="0" />
+                </MudItem>
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SaveProduct">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    List<Product> _products = new();
+    List<Category> _categories = new();
+    List<Brand> _brands = new();
+    List<Supplier> _suppliers = new();
+    bool _loading = true, _dialogOpen = false;
+    int _editId = 0;
+    Product _form = new();
+
+    protected override async Task OnInitializedAsync()
+        => await LoadData();
+
+    async Task LoadData()
+    {
+        _loading = true;
+        _products = await ProductService.GetProductsAsync();
+        _categories = await CategoryService.GetCategoriesAsync();
+        _brands = await BrandService.GetBrandsAsync();
+        _suppliers = await SupplierService.GetSuppliersAsync();
+        _loading = false;
+    }
+
+    void OpenAddDialog()
+    { _editId = 0; _form = new(); _dialogOpen = true; }
+
+    void OpenEditDialog(Product p)
+    {
+        _editId = p.Id;
+        _form = new Product
+        {
+            Name = p.Name,
+            Description = p.Description,
+            CategoryId = p.CategoryId,
+            BrandId = p.BrandId,
+            SupplierId = p.SupplierId,
+            SKU = p.SKU,
+            Price = p.Price,
+            Stock = p.Stock
+        };
+        _dialogOpen = true;
+    }
+
+    async Task SaveProduct()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name) ||
+            string.IsNullOrWhiteSpace(_form.SKU))
+        {
+            Snackbar.Add("Name and SKU are required.", Severity.Error);
+            return;
+        }
+        if (_editId == 0)
+        {
+            await ProductService.CreateProductAsync(_form);
+            Snackbar.Add("Product added!", Severity.Success);
+        }
+        else
+        {
+            _form.Id = _editId;
+            await ProductService.UpdateProductAsync(_form);
+            Snackbar.Add("Product updated!", Severity.Info);
+        }
+        _dialogOpen = false;
+        await LoadData();
+    }
+
+    async Task DeleteProduct(int id)
+    {
+        await ProductService.DeleteProductAsync(id);
+        Snackbar.Add("Product deleted.", Severity.Warning);
+        await LoadData();
+    }
+}

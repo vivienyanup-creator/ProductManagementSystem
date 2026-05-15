@@ -1,0 +1,60 @@
+@page "/login"
+@layout EmptyLayout
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small"
+              Class="d-flex justify-center align-center"
+              Style="min-height:100vh;">
+    <MudPaper Elevation="4" Class="pa-8"
+              Style="width:100%;max-width:420px;border-radius:16px;">
+
+        <MudText Typo="Typo.h4" Align="Align.Center"
+                 Class="mb-1" Color="Color.Primary">
+            <b>ProductManagement</b>
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center"
+                 Class="mb-6" Color="Color.Secondary">
+            Sign in to your account
+        </MudText>
+
+        @if (_showError)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">
+                Invalid username or password.
+            </MudAlert>
+        }
+
+        <form method="post" action="/api/login">
+            <div class="mb-4">
+                <label class="mud-input-label" style="display: block; margin-bottom: 4px;">Username</label>
+                <input type="text" name="username" required
+                       class="mud-input mud-input-outlined"
+                       style="width: 100%; padding: 12px; border: 1px solid var(--mud-palette-lines-inputs); border-radius: 4px;">
+            </div>
+            <div class="mb-6">
+                <label class="mud-input-label" style="display: block; margin-bottom: 4px;">Password</label>
+                <input type="password" name="password" required
+                       class="mud-input mud-input-outlined"
+                       style="width: 100%; padding: 12px; border: 1px solid var(--mud-palette-lines-inputs); border-radius: 4px;">
+            </div>
+            <button type="submit"
+                    class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-size-large"
+                    style="width: 100%; padding: 12px; border: none; border-radius: 4px; background-color: var(--mud-palette-primary); color: white; font-weight: bold;">
+                Sign In
+            </button>
+        </form>
+
+        <MudText Align="Align.Center" Class="mt-4" Typo="Typo.body2">
+            No account?
+            <MudLink Href="/register">Register here</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorQuery { get; set; }
+
+    private bool _showError => !string.IsNullOrEmpty(ErrorQuery);
+}

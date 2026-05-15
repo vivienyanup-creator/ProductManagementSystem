@@ -1,0 +1,401 @@
+@page "/product-inventory"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Hosting
+@using ProductManagement.Features.Data.Models
+@using ProductManagement.Features.Services.Interfaces
+@inject IProductService ProductService
+@inject ICategoryService CategoryService
+@inject IBrandService BrandService
+@inject ISupplierService SupplierService
+@inject ISnackbar Snackbar
+@inject IWebHostEnvironment Env
+
+<PageTitle>Product Inventory</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Product Inventory</MudText>
+
+    <MudToolBar DisablePadding="true" Class="mb-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenAddDialog">Add Product</MudButton>
+        <MudSpacer />
+        <MudToggleGroup T="bool" @bind-Value="IsCardView" Color="Color.Primary" Outline="true">
+            <MudToggleItem Value="false">
+                <MudIcon Icon="@Icons.Material.Filled.TableRows" /> Table
+            </MudToggleItem>
+            <MudToggleItem Value="true">
+                <MudIcon Icon="@Icons.Material.Filled.GridView" /> Cards
+            </MudToggleItem>
+        </MudToggleGroup>
+    </MudToolBar>
+
+    @if (_loading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        @if (IsCardView)
+        {
+            <MudGrid>
+                @foreach (var p in _products)
+                {
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard>
+                            <MudCardMedia Image="@(string.IsNullOrEmpty(p.ImageUrl) ? "/images/placeholder.png" : p.ImageUrl)" Height="200" />
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6">@p.Name</MudText>
+                                <MudText Typo="Typo.body2">SKU: @p.SKU</MudText>
+                                <MudText Typo="Typo.body2">Price: @p.Price.ToString("C")</MudText>
+                                <MudText Typo="Typo.body2">Quantity: @p.Stock</MudText>
+                            </MudCardContent>
+                            <MudCardActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="() => OpenViewDialog(p)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" OnClick="() => OpenEditDialog(p)" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => OpenDeleteDialog(p)" />
+                            </MudCardActions>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <MudTable T="Product" Items="_products" Hover="true" Striped="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>ID</MudTh>
+                    <MudTh>Image</MudTh>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Brand</MudTh>
+                    <MudTh>Supplier</MudTh>
+                    <MudTh>SKU</MudTh>
+                    <MudTh>Price</MudTh>
+                    <MudTh>Quantity</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="ID">@context.Id</MudTd>
+                    <MudTd DataLabel="Image">
+                        <MudImage Src="@(string.IsNullOrEmpty(context.ImageUrl) ? "/images/placeholder.png" : context.ImageUrl)" Width="50" Height="50" ObjectFit="ObjectFit.Cover" />
+                    </MudTd>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Category">@context.Category?.Name</MudTd>
+                    <MudTd DataLabel="Brand">@context.Brand?.Name</MudTd>
+                    <MudTd DataLabel="Supplier">@context.Supplier?.Name</MudTd>
+                    <MudTd DataLabel="SKU">@context.SKU</MudTd>
+                    <MudTd DataLabel="Price">@context.Price.ToString("C")</MudTd>
+                    <MudTd DataLabel="Quantity">@context.Stock</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" OnClick="() => OpenViewDialog(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" OnClick="() => OpenEditDialog(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => OpenDeleteDialog(context)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    }
+</MudContainer>
+
+@* View Dialog *@
+<MudDialog @bind-IsVisible="_viewDialogOpen">
+    <TitleContent>
+        <MudText Typo="Typo.h6">View Product</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_selectedProduct != null)
+        {
+            <MudGrid>
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudImage Src="@(string.IsNullOrEmpty(_selectedProduct.ImageUrl) ? "/images/placeholder.png" : _selectedProduct.ImageUrl)" Width="200" Height="200" ObjectFit="ObjectFit.Cover" Elevation="4" Class="rounded-lg" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudList T="string" ReadOnly="true">
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Label">
+                            <MudText><b>Name:</b> @_selectedProduct.Name</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Description">
+                            <MudText><b>Description:</b> @_selectedProduct.Description</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Category">
+                            <MudText><b>Category:</b> @_categories.FirstOrDefault(c => c.Id == _selectedProduct.CategoryId)?.Name</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.BrandingWatermark">
+                            <MudText><b>Brand:</b> @_brands.FirstOrDefault(b => b.Id == _selectedProduct.BrandId)?.Name</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.LocalShipping">
+                            <MudText><b>Supplier:</b> @_suppliers.FirstOrDefault(s => s.Id == _selectedProduct.SupplierId)?.Name</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.QrCode">
+                            <MudText><b>SKU:</b> @_selectedProduct.SKU</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.AttachMoney">
+                            <MudText><b>Price:</b> @_selectedProduct.Price.ToString("C")</MudText>
+                        </MudListItem>
+                        <MudListItem T="string" Icon="@Icons.Material.Filled.Inventory">
+                            <MudText><b>Quantity:</b> @_selectedProduct.Stock</MudText>
+                        </MudListItem>
+                    </MudList>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _viewDialogOpen = false" Color="Color.Primary">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* Add/Edit Dialog *@
+<MudDialog @bind-IsVisible="_editDialogOpen" Options="_dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(_editId == 0 ? "Add Product" : "Edit Product")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.Name" Label="Product Name" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.SKU" Label="SKU" Variant="Variant.Outlined" FullWidth="true" Required="true" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Description" Label="Description" Variant="Variant.Outlined" FullWidth="true" Lines="2" />
+            </MudItem>
+            
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" @bind-Value="_form.CategoryId" Label="Category" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var cat in _categories)
+                    {
+                        <MudSelectItem T="int?" Value="cat.Id">@cat.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" @bind-Value="_form.BrandId" Label="Brand" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var brand in _brands)
+                    {
+                        <MudSelectItem T="int?" Value="brand.Id">@brand.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="int?" @bind-Value="_form.SupplierId" Label="Supplier" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var supplier in _suppliers)
+                    {
+                        <MudSelectItem T="int?" Value="supplier.Id">@supplier.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="decimal" @bind-Value="_form.Price" Label="Price" Variant="Variant.Outlined" FullWidth="true" Min="0" Format="F2" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <div class="d-flex align-center mt-2">
+                    <MudIconButton Icon="@Icons.Material.Filled.Remove" OnClick="DecreaseQuantity" Color="Color.Error" />
+                    <MudNumericField T="int" @bind-Value="_form.Stock" Label="Quantity" Variant="Variant.Outlined" FullWidth="true" Min="0" Class="mx-2" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="IncreaseQuantity" Color="Color.Success" />
+                </div>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudFileUpload T="IBrowserFile" FilesChanged="UploadImage" Accept=".jpg,.jpeg,.png,.webp">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Upload Image
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if (!string.IsNullOrEmpty(_form.ImageUrl))
+                {
+                    <MudImage Src="@_form.ImageUrl" Width="100" Height="100" ObjectFit="ObjectFit.Cover" Class="mt-2 rounded" />
+                }
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editDialogOpen = false">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProduct">
+            @(_editId == 0 ? "Add" : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@* Delete Dialog *@
+<MudDialog @bind-IsVisible="_deleteDialogOpen">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Remove Product</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>Do you want to remove this Product?</MudText>
+        @if (_selectedProduct != null)
+        {
+            <MudText Typo="Typo.body2" Class="mt-2"><b>@_selectedProduct.Name</b> (@_selectedProduct.SKU)</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _deleteDialogOpen = false">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="ConfirmDelete">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    List<Product> _products = new();
+    List<Category> _categories = new();
+    List<Brand> _brands = new();
+    List<Supplier> _suppliers = new();
+    bool _loading = true;
+    public bool IsCardView { get; set; } = false;
+
+    // Dialog states
+    bool _viewDialogOpen = false;
+    bool _editDialogOpen = false;
+    bool _deleteDialogOpen = false;
+    
+    DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    int _editId = 0;
+    Product _form = new();
+    Product? _selectedProduct;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        
+        // Ensure image directory exists
+        var uploadsPath = Path.Combine(Env.WebRootPath, "images", "products");
+        if (!Directory.Exists(uploadsPath))
+        {
+            Directory.CreateDirectory(uploadsPath);
+        }
+        
+        // Create a placeholder image if it doesn't exist
+        var placeholderPath = Path.Combine(Env.WebRootPath, "images", "placeholder.png");
+        if (!File.Exists(placeholderPath))
+        {
+            var imagesDir = Path.Combine(Env.WebRootPath, "images");
+            if (!Directory.Exists(imagesDir)) Directory.CreateDirectory(imagesDir);
+            
+            // Just create an empty file so it doesn't 404 immediately, in a real app you'd provide an actual image
+            await File.WriteAllBytesAsync(placeholderPath, new byte[0]);
+        }
+    }
+
+    async Task LoadData()
+    {
+        _loading = true;
+        _products = await ProductService.GetProductsAsync();
+        _categories = await CategoryService.GetCategoriesAsync();
+        _brands = await BrandService.GetBrandsAsync();
+        _suppliers = await SupplierService.GetSuppliersAsync();
+        _loading = false;
+    }
+
+    void OpenViewDialog(Product p)
+    {
+        _selectedProduct = p;
+        _viewDialogOpen = true;
+    }
+
+    void OpenAddDialog()
+    { 
+        _editId = 0; 
+        _form = new Product { Stock = 1 }; // Default quantity
+        _editDialogOpen = true; 
+    }
+
+    void OpenEditDialog(Product p)
+    {
+        _editId = p.Id;
+        _form = new Product
+        {
+            Name = p.Name,
+            Description = p.Description,
+            CategoryId = p.CategoryId,
+            BrandId = p.BrandId,
+            SupplierId = p.SupplierId,
+            SKU = p.SKU,
+            Price = p.Price,
+            Stock = p.Stock,
+            ImageUrl = p.ImageUrl
+        };
+        _editDialogOpen = true;
+    }
+
+    void OpenDeleteDialog(Product p)
+    {
+        _selectedProduct = p;
+        _deleteDialogOpen = true;
+    }
+
+    void IncreaseQuantity() => _form.Stock++;
+    
+    void DecreaseQuantity() 
+    {
+        if (_form.Stock > 0) _form.Stock--;
+    }
+
+    async Task UploadImage(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        try
+        {
+            var ext = Path.GetExtension(file.Name);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var folderPath = Path.Combine(Env.WebRootPath, "images", "products");
+            var filePath = Path.Combine(folderPath, fileName);
+
+            using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10MB limit
+            using var fileStream = new FileStream(filePath, FileMode.Create);
+            await stream.CopyToAsync(fileStream);
+
+            _form.ImageUrl = $"/images/products/{fileName}";
+            StateHasChanged();
+            Snackbar.Add("Image uploaded successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading image: {ex.Message}", Severity.Error);
+        }
+    }
+
+    async Task SaveProduct()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
+        {
+            Snackbar.Add("Product Name and SKU are required.", Severity.Error);
+            return;
+        }
+
+        if (_editId == 0)
+        {
+            await ProductService.CreateProductAsync(_form);
+            Snackbar.Add("Product added successfully!", Severity.Success);
+        }
+        else
+        {
+            _form.Id = _editId;
+            await ProductService.UpdateProductAsync(_form);
+            Snackbar.Add("Product updated successfully!", Severity.Info);
+        }
+        
+        _editDialogOpen = false;
+        await LoadData();
+    }
+
+    async Task ConfirmDelete()
+    {
+        if (_selectedProduct != null)
+        {
+            await ProductService.DeleteProductAsync(_selectedProduct.Id);
+            Snackbar.Add("Product deleted.", Severity.Warning);
+            _deleteDialogOpen = false;
+            await LoadData();
+        }
+    }
+}

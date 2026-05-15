@@ -1,0 +1,121 @@
+@page "/categories"
+@attribute [Authorize]
+@inject ICategoryService CategoryService
+@inject ISnackbar Snackbar
+
+<PageTitle>Category Management</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Category Management</MudText>
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Add"
+           OnClick="OpenAddDialog" Class="mb-4">Add Category</MudButton>
+
+<MudTable T="Category" Items="_categories" Hover="true" Striped="true"
+          Loading="_loading" Bordered="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh><MudTh>Name</MudTh><MudTh>Description</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Description">@context.Description</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                           Color="Color.Warning"
+                           OnClick="() => OpenEditDialog(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                           Color="Color.Error"
+                           OnClick="() => DeleteCategory(context.Id)" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@if (_dialogOpen)
+{
+    <MudDialog>
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                @(_editId == 0 ? "Add Category" : "Edit Category")
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Name" Label="Name"
+                                  Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Description"
+                                  Label="Description" Variant="Variant.Outlined"
+                                  FullWidth="true" Lines="3" />
+                </MudItem>
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => _dialogOpen = false">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="SaveCategory">Save</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    List<Category> _categories = new();
+    bool _loading = true, _dialogOpen = false;
+    int _editId = 0;
+    Category _form = new();
+
+    protected override async Task OnInitializedAsync()
+        => await LoadCategories();
+
+    async Task LoadCategories()
+    {
+        _loading = true;
+        _categories = await CategoryService.GetCategoriesAsync();
+        _loading = false;
+    }
+
+    void OpenAddDialog()
+    { _editId = 0; _form = new(); _dialogOpen = true; }
+
+    void OpenEditDialog(Category c)
+    {
+        _editId = c.Id;
+        _form = new Category
+        {
+            Name = c.Name,
+            Description = c.Description
+        };
+        _dialogOpen = true;
+    }
+
+    async Task SaveCategory()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name))
+        {
+            Snackbar.Add("Name is required.", Severity.Error);
+            return;
+        }
+        if (_editId == 0)
+        {
+            await CategoryService.CreateCategoryAsync(_form);
+            Snackbar.Add("Category added!", Severity.Success);
+        }
+        else
+        {
+            _form.Id = _editId;
+            await CategoryService.UpdateCategoryAsync(_form);
+            Snackbar.Add("Category updated!", Severity.Info);
+        }
+        _dialogOpen = false;
+        await LoadCategories();
+    }
+
+    async Task DeleteCategory(int id)
+    {
+        await CategoryService.DeleteCategoryAsync(id);
+        Snackbar.Add("Category deleted.", Severity.Warning);
+        await LoadCategories();
+    }
+}
